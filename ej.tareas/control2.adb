@@ -1,20 +1,32 @@
- 
 with Ada.Text_IO; use Ada.Text_IO;
 with Ada.Integer_Text_IO; use Ada.Integer_Text_IO;
 with Ada.Float_Text_IO; use Ada.Float_Text_IO;
 with Ada.Real_Time; use Ada.Real_Time;
 
-
 procedure control2 is
 ------------------------ Objetos protegidos --------------------------
        Protected Sintomas is
-	   function ReadVolante return integer;
+	   --Volante
+       function ReadVolante return integer;
 	   procedure WriteVolante (Val : Integer);
-	   function ReadRelax return boolean;
+	   
+       -- RElax
+       function ReadRelax return boolean;
 	   procedure WriteRelax (Val : Boolean);
+	   
+        --cabeza
+       function ReadInclinacionCabeza return Integer;
+	   procedure WriteInclinacionCabeza (Val : Integer);
+	   
+       --distancia
+       function ReadDistancia return Integer;
+	   procedure WriteDistancia (Val : Integer);
+
        private
           Shared_Volante : integer := 0;
           Shared_Relax: boolean := false;
+          Shared_InclinacionCabeza: integer := 0;
+          Shared_Distancia: integer := 0;
        end Sintomas;
 
        Protected body Sintomas is
@@ -34,6 +46,25 @@ procedure control2 is
                begin
                     Shared_Relax:= Val;
                end WriteRelax;
+           function ReadInclinacionCabeza return integer is
+               begin
+                    return Shared_InclinacionCabeza;
+               end ReadInclinacionCabeza;
+            procedure WriteInclinacionCabeza (Val : integer) is
+               begin
+                    Shared_InclinacionCabeza:= Val;
+               end WriteInclinacionCabeza;
+
+            
+           function ReadDistancia return integer is
+               begin
+                    return Shared_Distancia;
+               end ReadDistancia;
+            procedure WriteDistancia (Val : integer) is
+               begin
+                    Shared_Distancia:= Val;
+               end WriteDistancia;
+
        end Sintomas;
 
 --------------------------Funciones------------------------------------     
@@ -102,12 +133,76 @@ procedure control2 is
 		begin
 			return Sensor_infrarrojos = 0;
 		end Sensor_Agarre;
+	function Sensor_Velocidad return integer is
+		begin
+			return Leer_Sensor(3);
+		end Sensor_Velocidad;
+	function Sensor_Distancia return integer is
+        package E_S_REALES is new Float_IO (Float);
+		Timeout : Time_Span := To_Time_Span(1.0); -- segundos
+		Echo : integer := 0;
+        Comienzo: Time;
+        Periodo: Time_Span;
+        Tiempo: float;
+
+		begin
+			Activar_trigger(1); 
+			delay 0.15;	
+			Activar_trigger(0); 
+            Comienzo:= Clock;
+			Select
+			    delay To_Duration(Timeout);
+		        put("Distancia infiniiiiiita");	
+			then abort
+                while Echo = 0 loop	
+                    Echo :=	Leer_echo;
+                end loop;
+                Periodo := Clock - Comienzo;
+                Tiempo := float(To_Duration(Periodo));
+                put("El echo ha tardado ");
+                E_S_REALES.Put(Tiempo,2,4,0); put_line("");
+			end select;
+	
+			return 5; -- DISTANCIA FIJA (Nos faltan voltios)
+		end Sensor_Distancia;
+
+	function Detectar_Distraccion return integer is
+        distancia : integer := 0;
+        velocidad : integer := 0;
+        relax: boolean := false;
+        volanteDiff: integer := 0;
+
+		begin
+            distancia := Sintomas.ReadDistancia;
+            velocidad := Sensor_Velocidad;
+            relax := Sintomas.ReadRelax;
+            volanteDiff := Sintomas.ReadVolante;
+
+            put("");
+            put("Emergencia Distancia: ");
+            put(distancia);
+            put("Emergencia Velocidad: ");
+            put(velocidad);
+            put("Emergencia Relax: ");
+            if relax then
+                put("Relax true");
+            else 
+                put("Relax false");
+            end if;
+            put("Emergencia Volante diff: ");
+            put(volanteDiff);
+            put("");
+			return 0;
+		end Detectar_Distraccion;
 
   procedure Lanza_Tareas;  
    
   procedure Lanza_Tareas is
     task deteccionVolantazo;
     task deteccionAgarre; 
+    task Emergencia;
+    -- task deteccionInclinacionCabeza; 
+    task deteccionDistancia;
 
     task body deteccionVolantazo is
        vActual, vAnterior, diff : integer := 0;
@@ -142,7 +237,7 @@ procedure control2 is
 	 vActual := vActual;
 	 siguienteInst := Clock + intervalo; 
          loop
-	   put("Agarre volante: ");
+	   put("Relax al volante: ");
 	   vAnterior:= vActual;
 	   vAnterior:= Sensor_Agarre;
 	   -- SIN AGARRAR
@@ -169,18 +264,49 @@ procedure control2 is
 			contadorAgarre := 0;
 		end if;
 	   end if;
-
            delay until siguienteInst;
            siguienteInst := siguienteInst + intervalo;
          end loop;
       end deteccionAgarre; 
+
+    task body deteccionDistancia is
+       distancia : integer := 0;
+       siguienteInst : Time;
+       intervalo : Time_Span := Milliseconds(300);
+      begin
+	      siguienteInst := Clock + intervalo; 
+          loop
+              distancia := Sensor_Distancia;
+              put("Distancia: ");
+              put(distancia);
+              Sintomas.WriteDistancia(distancia);
+              delay until siguienteInst;
+              siguienteInst := siguienteInst + intervalo;
+          end loop;
+     end deteccionDistancia;
+
+    task body Emergencia is
+       velocidad : integer := 0;
+       siguienteInst : Time;
+       intervalo : Time_Span := Milliseconds(300);
+       nivelDistraccion : integer := 0;
+      begin
+	    siguienteInst := Clock + intervalo; 
+         loop
+           put("Emergencia: ");
+           nivelDistraccion := Detectar_Distraccion; 
+       
+           delay until siguienteInst;
+           siguienteInst := siguienteInst + intervalo;
+         end loop;
+      end Emergencia;
 
   begin 
      Put_Line ("Cuerpo del procedimiento Lanza_Tareas ");
   end Lanza_Tareas;
      
 begin
-    put_line ("Aaranca programa principal");
+    put_line ("Arranca programa principal");
     n := Inicializar_dispositivos;
     put ("Inicializados los dispositivos: "); put (n, 3); New_line;
     Lanza_Tareas;
