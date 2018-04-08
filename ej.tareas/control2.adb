@@ -152,14 +152,14 @@ procedure control2 is
             Comienzo:= Clock;
 			Select
 			    delay To_Duration(Timeout);
-		        put("Distancia infiniiiiiita");	
+		        put_line("Distancia infiniiiiiita");	
 			then abort
                 while Echo = 0 loop	
                     Echo :=	Leer_echo;
                 end loop;
                 Periodo := Clock - Comienzo;
                 Tiempo := float(To_Duration(Periodo));
-                put("El echo ha tardado ");
+                put_line("El echo ha tardado ");
                 E_S_REALES.Put(Tiempo,2,4,0); put_line("");
 			end select;
 	
@@ -171,27 +171,43 @@ procedure control2 is
         velocidad : integer := 0;
         relax: boolean := false;
         volanteDiff: integer := 0;
+        dist_segura: boolean := false;
+        volantazo: boolean := false;
 
 		begin
+            put_line("");
+            put_line("=== TAREA::Detectar Distracción ===");
+
             distancia := Sintomas.ReadDistancia;
             velocidad := Sensor_Velocidad;
             relax := Sintomas.ReadRelax;
             volanteDiff := Sintomas.ReadVolante;
 
-            put("");
             put("Emergencia Distancia: ");
             put(distancia);
+            put_line("");
             put("Emergencia Velocidad: ");
             put(velocidad);
+            put_line("");
             put("Emergencia Relax: ");
             if relax then
-                put("Relax true");
+                put("true");
+                put_line("");
             else 
-                put("Relax false");
+                put("false");
+                put_line("");
             end if;
             put("Emergencia Volante diff: ");
             put(volanteDiff);
-            put("");
+            put_line("");
+
+            dist_segura := (distancia >= (velocidad/10)**2);
+            volantazo := (velocidad > 70 and volanteDiff > 150);
+            if (not dist_segura and volantazo) or ((not dist_segura or volantazo) and relax) then
+                return 2;
+            elsif (not dist_segura xor volantazo) then 
+                return 1;
+            end if;
 			return 0;
 		end Detectar_Distraccion;
 
@@ -210,16 +226,19 @@ procedure control2 is
        intervalo : Time_Span := Milliseconds(400);
 	
       begin
-	 vAnterior := Sensor_Volante;
-	 siguienteInst := Clock + intervalo; 
+       put_line("");
+	   put_line("=== TAREA::Detección Volantazo ===");
+
+	   vAnterior := Sensor_Volante;
+	   siguienteInst := Clock + intervalo; 
          loop
-	   put("Volante: ");
-	   vActual := Sensor_Volante;
-	   diff := abs(vActual - vAnterior);
-	   put("Diferencia: ");
-           put(diff);
-	   vAnterior :=vActual;
-	   Sintomas.WriteVolante(diff);
+	        vActual := Sensor_Volante;
+            diff := abs(vActual - vAnterior);
+	        put("TDV::Diferencia: ");
+            put(diff);
+            put_line("");
+	        vAnterior :=vActual;
+	        Sintomas.WriteVolante(diff);
            delay until siguienteInst;
            siguienteInst := siguienteInst + intervalo;
          end loop;
@@ -228,42 +247,53 @@ procedure control2 is
      task body deteccionAgarre is
        vActual, vAnterior: Boolean := false;
        siguienteInst : Time;
-       intervalo : Time_Span := Milliseconds(400);
+       intervalo : Time_Span := Milliseconds(500);
        contadorAgarre : Integer := 0;
        sintoma : Boolean := false;
 	
       begin
-	 vAnterior:= Sensor_Agarre;
-	 vActual := vActual;
-	 siguienteInst := Clock + intervalo; 
+        put_line("");
+	    put_line("=== TAREA::Detección Relax ===");
+
+	    vAnterior:= Sensor_Agarre;
+        vActual := vActual;
+	    siguienteInst := Clock + intervalo; 
          loop
-	   put("Relax al volante: ");
-	   vAnterior:= vActual;
-	   vAnterior:= Sensor_Agarre;
-	   -- SIN AGARRAR
-	   if vActual then
-		if contadorAgarre < 3 then
-			contadorAgarre := contadorAgarre + 1;
-			if contadorAgarre = 3 and sintoma = false then
-				sintoma := true;
-				Sintomas.WriteRelax(sintoma);
-				put("Detectado relax al volante!!");
-			end if;
-		end if;
-	   else
-	   -- AGARRADO
-		if sintoma then
-			contadorAgarre := contadorAgarre - 1;
-			if contadorAgarre = 1 then
-				sintoma := false;
-				Sintomas.WriteRelax(sintoma);
-				contadorAgarre := 0;
-				put("Desactivado relax al volante. Vuelves a estar despierto!!");
-			end if;	
-		else
-			contadorAgarre := 0;
-		end if;
-	   end if;
+           put_line("");
+           put_line("TDR::Relax al volante: ");
+           vAnterior:= vActual;
+           vAnterior:= Sensor_Agarre;
+           -- SIN AGARRAR
+           if vActual then
+              if contadorAgarre < 3 then
+                contadorAgarre := contadorAgarre + 1;
+                if contadorAgarre = 3 and sintoma = false then
+                    sintoma := true;
+                    Sintomas.WriteRelax(sintoma);
+                    put_line("Detectado relax al volante!!");
+			    end if;
+		       end if;
+	       else
+	       -- AGARRADO
+		       if sintoma then
+			       contadorAgarre := contadorAgarre - 1;
+			       if contadorAgarre = 1 then
+				       sintoma := false;
+				       Sintomas.WriteRelax(sintoma);
+				       contadorAgarre := 0;
+				       put_line("Desactivado relax al volante. Vuelves a estar despierto!!");
+			       end if;	
+		        else
+			      contadorAgarre := 0;
+		        end if;
+	        end if;
+        put("TDR::Síntoma: ");
+        if sintoma then
+            put("true");
+        else
+            put("false");
+        end if;
+        put_line("");
            delay until siguienteInst;
            siguienteInst := siguienteInst + intervalo;
          end loop;
@@ -277,7 +307,7 @@ procedure control2 is
 	      siguienteInst := Clock + intervalo; 
           loop
               distancia := Sensor_Distancia;
-              put("Distancia: ");
+              put_line("TDD::Distancia: ");
               put(distancia);
               Sintomas.WriteDistancia(distancia);
               delay until siguienteInst;
@@ -293,8 +323,11 @@ procedure control2 is
       begin
 	    siguienteInst := Clock + intervalo; 
          loop
-           put("Emergencia: ");
+           put_line("");
            nivelDistraccion := Detectar_Distraccion; 
+           put("TDE::Nivel Emergencia: ");
+           put(nivelDistraccion);
+           put_line("");
        
            delay until siguienteInst;
            siguienteInst := siguienteInst + intervalo;
@@ -308,6 +341,6 @@ procedure control2 is
 begin
     put_line ("Arranca programa principal");
     n := Inicializar_dispositivos;
-    put ("Inicializados los dispositivos: "); put (n, 3); New_line;
+    put_line ("Inicializados los dispositivos: "); put (n, 3); New_line;
     Lanza_Tareas;
 end control2;

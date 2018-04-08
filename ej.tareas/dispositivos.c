@@ -142,9 +142,9 @@ int lee_echo ()
 {
  int valor;
  valor = digitalRead(PIN_echo);
- if (valor) 
+ /*if (valor) 
       printf ("---- Echo ON  \n");
- else printf ("---- Echo OFF \n");
+ else printf ("---- Echo OFF \n");*/
  return (valor);
 };
 
