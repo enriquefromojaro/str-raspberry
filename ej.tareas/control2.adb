@@ -131,7 +131,7 @@ procedure control2 is
 		end Sensor_Luz;
 	function Sensor_Agarre return boolean is
 		begin
-			return Sensor_infrarrojos = 0;
+			return Sensor_infrarrojos /= 0;
 		end Sensor_Agarre;
 	function Sensor_Velocidad return integer is
 		begin
