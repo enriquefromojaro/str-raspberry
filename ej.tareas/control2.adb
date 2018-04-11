@@ -252,17 +252,18 @@ procedure control2 is
        sintoma : Boolean := false;
 	
       begin
-        put_line("");
-	    put_line("=== TAREA::Detección Relax ===");
+         put_line("");
+	 put_line("=== TAREA::Detección Relax ===");
 
-	    vAnterior:= Sensor_Agarre;
-        vActual := vActual;
-	    siguienteInst := Clock + intervalo; 
+	 vAnterior:= Sensor_Agarre;
+         vActual := vActual;
+	 siguienteInst := Clock + intervalo; 
          loop
            put_line("");
            put_line("TDR::Relax al volante: ");
            vAnterior:= vActual;
-           vAnterior:= Sensor_Agarre;
+           vActual:= Sensor_Agarre;
+
            -- SIN AGARRAR
            if vActual then
               if contadorAgarre < 3 then
